@@ -38,13 +38,19 @@ def make_inter_layer(dim):
 def make_cnv_layer(inp_dim, out_dim):
     return convolution(3, inp_dim, out_dim)
 
+# # ct_regr = [batch_size , 16384 , 2] , ct_embed [batch_size , 128]
 def _gather_feat(feat, ind, mask=None):
     dim  = feat.size(2)
+    # 1. ind 变成 [batch_size , 128 ，1 ]  在位置2 加一维度
+    # temp  = ind.unsqueeze(2)
+    # 2. [batch_size , 128 ，2 ]  复制
+    # temp = temp.expand(ind.size(0), ind.size(1), dim)
+
     ind  = ind.unsqueeze(2).expand(ind.size(0), ind.size(1), dim)
-    feat = feat.gather(1, ind)
+    feat = feat.gather(1, ind)  # 根据索引重组 torch.Size([1, 128, 2])
     if mask is not None:
         mask = mask.unsqueeze(2).expand_as(feat)
-        feat = feat[mask]
+        feat = feat[mask] # torch.Size([1, 128, 2])
         feat = feat.view(-1, dim)
     return feat
 
@@ -55,9 +61,12 @@ def _nms(heat, kernel=1):
     keep = (hmax == heat).float()
     return heat * keep
 
+# ct_regr = _tranpose_and_gather_feat(ct_regr, ct_inds)   # torch.Size([1, 128, 2])
+# ct_regr = torch.Size([1,  2, 128, 128])   , ct_inds = # (batch_size, 128) 真实的 embed
 def _tranpose_and_gather_feat(feat, ind):
+    # ct_regr =  [batch_size , 128 ,128, 2]
     feat = feat.permute(0, 2, 3, 1).contiguous()
-    feat = feat.view(feat.size(0), -1, feat.size(3))
+    feat = feat.view(feat.size(0), -1, feat.size(3)) # ct_regr = [batch_size , 16384 , 2]
     feat = _gather_feat(feat, ind)
     return feat
 
@@ -179,7 +188,7 @@ def _neg_loss(preds, gt):
     for pred in preds:
         pos_pred = pred[pos_inds]
         neg_pred = pred[neg_inds]
-
+        # 公式见 cornernet P5
         pos_loss = torch.log(pos_pred) * torch.pow(1 - pos_pred, 2)
         neg_loss = torch.log(1 - neg_pred) * torch.pow(neg_pred, 2) * neg_weights
 
@@ -198,7 +207,7 @@ def _sigmoid(x):
     return x
 
 def _ae_loss(tag0, tag1, mask):
-    num  = mask.sum(dim=1, keepdim=True).float()
+    num  = mask.sum(dim=1, keepdim=True).float() # 框的个数
     tag0 = tag0.squeeze()
     tag1 = tag1.squeeze()
 

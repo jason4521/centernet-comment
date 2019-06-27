@@ -221,15 +221,16 @@ class kp(nn.Module):
             br_cnv = br_cnv_(cnv)
             ct_cnv = ct_cnv_(cnv)
 
-            tl_heat, br_heat, ct_heat = tl_heat_(tl_cnv), br_heat_(br_cnv), ct_heat_(ct_cnv)
-            tl_tag, br_tag        = tl_tag_(tl_cnv),  br_tag_(br_cnv)
-            tl_regr, br_regr, ct_regr = tl_regr_(tl_cnv), br_regr_(br_cnv), ct_regr_(ct_cnv)
+            tl_heat, br_heat, ct_heat = tl_heat_(tl_cnv), br_heat_(br_cnv), ct_heat_(ct_cnv)    # torch.Size([1, 80, 128, 128])
+            tl_tag, br_tag        = tl_tag_(tl_cnv),  br_tag_(br_cnv)                           # torch.Size([1,  1, 128, 128])
+            tl_regr, br_regr, ct_regr = tl_regr_(tl_cnv), br_regr_(br_cnv), ct_regr_(ct_cnv)    # torch.Size([1,  2, 128, 128])
 
-            tl_tag  = _tranpose_and_gather_feat(tl_tag, tl_inds)
-            br_tag  = _tranpose_and_gather_feat(br_tag, br_inds)
-            tl_regr = _tranpose_and_gather_feat(tl_regr, tl_inds)
-            br_regr = _tranpose_and_gather_feat(br_regr, br_inds)
-            ct_regr = _tranpose_and_gather_feat(ct_regr, ct_inds)
+            # 1. 形状转变 2. 提取真实有点的地方的值
+            tl_tag  = _tranpose_and_gather_feat(tl_tag, tl_inds)    # torch.Size([1, 128, 1])
+            br_tag  = _tranpose_and_gather_feat(br_tag, br_inds)    # embed
+            tl_regr = _tranpose_and_gather_feat(tl_regr, tl_inds)   # offset
+            br_regr = _tranpose_and_gather_feat(br_regr, br_inds)   # torch.Size([1, 128, 2])
+            ct_regr = _tranpose_and_gather_feat(ct_regr, ct_inds)   # torch.Size([1, 128, 2])
 
             outs += [tl_heat, br_heat, ct_heat, tl_tag, br_tag, tl_regr, br_regr, ct_regr]
 
@@ -238,9 +239,6 @@ class kp(nn.Module):
                 inter = self.relu(inter)
                 inter = self.inters[ind](inter)
 
-        for idx, img in enumerate(outs[8][0]):
-            print(img.size())
-            vis.image(img, win='output_tl_heat_id_' + str(idx), opts=dict(title='output_tl_heat_id_' + str(idx)))
         # outs 16个值串行在一个列表
         return outs
 
@@ -310,12 +308,12 @@ class AELoss(nn.Module):
     def forward(self, outs, targets):
         stride = 8
 
-        tl_heats = outs[0::stride]
+        tl_heats = outs[0::stride]   # torch.Size([1, 80, 128, 128])
         br_heats = outs[1::stride]
         ct_heats = outs[2::stride]
-        tl_tags  = outs[3::stride]
+        tl_tags  = outs[3::stride]   # torch.Size([1, 128, 1])   embed
         br_tags  = outs[4::stride]
-        tl_regrs = outs[5::stride]
+        tl_regrs = outs[5::stride]   # torch.Size([1, 128, 2])   offsets
         br_regrs = outs[6::stride]
         ct_regrs = outs[7::stride]
 
@@ -327,8 +325,12 @@ class AELoss(nn.Module):
         gt_br_regr = targets[5]
         gt_ct_regr = targets[6]
 
-        for idx, img in enumerate(gt_tl_heat[0]):
-            vis.image(img, win='label_tl_heat_id_' + str(idx), opts=dict(title='label_tl_heat_id_' + str(idx)))
+        # 绘制真实 huatmap 与 训练生成的 heatmap
+        for idx, img in enumerate(gt_ct_heat[0]):
+            if np.array(img).any() > 0: # 某一类，的热图
+                vis.image(img, win='label_ct_heat_id_' + str(0), opts=dict(title='label_ct_heat_id_' + str(0)))
+                vis.image(outs[10][0][idx], win='output_ct_heat_id_' + str(0), opts=dict(title='output_ct_heat_id_' + str(0)))
+                break
 
         # focal loss
         focal_loss = 0
@@ -337,6 +339,7 @@ class AELoss(nn.Module):
         br_heats = [_sigmoid(b) for b in br_heats]
         ct_heats = [_sigmoid(c) for c in ct_heats]
 
+        #  tl_heats shape(2,[1,80,128,128])
         focal_loss += self.focal_loss(tl_heats, gt_tl_heat)
         focal_loss += self.focal_loss(br_heats, gt_br_heat)
         focal_loss += self.focal_loss(ct_heats, gt_ct_heat)
@@ -345,6 +348,7 @@ class AELoss(nn.Module):
         pull_loss = 0
         push_loss = 0
 
+        # embed 分值大小不重要，距离接近
         for tl_tag, br_tag in zip(tl_tags, br_tags):
             pull, push = self.ae_loss(tl_tag, br_tag, gt_mask)
             pull_loss += pull

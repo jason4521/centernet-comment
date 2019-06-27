@@ -90,6 +90,7 @@ class NetworkFactory(object):
         pull_loss   = pull_loss.mean()
         push_loss   = push_loss.mean()
         regr_loss   = regr_loss.mean()
+        # pytorch 的函数？
         loss.backward()
         self.optimizer.step()
         return loss, focal_loss, pull_loss, push_loss, regr_loss
