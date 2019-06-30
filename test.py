@@ -18,7 +18,7 @@ torch.backends.cudnn.benchmark = False
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Test CenterNet")
-    parser.add_argument("cfg_file", help="config file", type=str)
+    parser.add_argument("--cfg_file", help="config file",default='CenterNet-104', type=str)
     parser.add_argument("--testiter", dest="testiter",
                         help="test at iteration i",
                         default=None, type=int)

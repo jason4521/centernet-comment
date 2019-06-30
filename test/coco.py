@@ -17,19 +17,44 @@ from external.nms import soft_nms, soft_nms_merge
 
 colours = np.random.rand(80,3)
 
+
+'''
+            # 特征图大小 除以 二进制放大后原图大小
+            ratios[0]  = [height_ratio, width_ratio]
+            # 中心图上边界坐标
+            borders[0] = border
+                    border = np.array([
+                               cropped_cty - top,
+                               cropped_cty + bottom,
+                               cropped_ctx - left,
+                               cropped_ctx + right
+                            ], dtype=np.float32)
+            # 缩放后原图大小存入 sizes[0]
+            sizes[0]   = [int(height * scale), int(width * scale)]
+'''
 def _rescale_dets(detections, ratios, borders, sizes):
-    xs, ys = detections[..., 0:4:2], detections[..., 1:4:2]
+    xs, ys = detections[..., 0:4:2], detections[..., 1:4:2]     # xs = <class 'tuple'>: (1, 2000, 2)
+    # print(ratios[:, 1])     [0.25032595]
+    # print(ratios[:, 1][:, None, None])    [[[0.25032595]]]
+    # 转换到 二进制 处理后角点坐标
     xs    /= ratios[:, 1][:, None, None]
     ys    /= ratios[:, 0][:, None, None]
-    xs    -= borders[:, 2][:, None, None]
-    ys    -= borders[:, 0][:, None, None]
+    # 转换到 二进制 处理前（对应 crop_image 部分）角点坐标
+    xs    -= borders[:, 2][:, None, None]   # borders[:, 2] 中心图左边界坐标
+    ys    -= borders[:, 0][:, None, None]   # borders[:, 2] 中心图上边界坐标
+
+    # 出界的点的索引
     tx_inds = xs[:,:,0] <= -5
     bx_inds = xs[:,:,1] >= sizes[0,1]+5
     ty_inds = ys[:,:,0] <= -5
     by_inds = ys[:,:,1] >= sizes[0,0]+5
-    
+
+    # 将范围外的数强制转化为范围内的数 最小值 0 最大值
+    # 坐标不超过原图大小
     np.clip(xs, 0, sizes[:, 1][:, None, None], out=xs)
     np.clip(ys, 0, sizes[:, 0][:, None, None], out=ys)
+
+    # 出借的框置 为 -1
     detections[:,tx_inds[0,:],4] = -1
     detections[:,bx_inds[0,:],4] = -1
     detections[:,ty_inds[0,:],4] = -1
@@ -51,9 +76,12 @@ def save_image(data, fn):
     plt.close()
 
 def kp_decode(nnet, images, K, ae_threshold=0.5, kernel=3):
+    # center = 1.预测的中点坐标值  2.预测的类别值  3， 预测的置信度
+    # detections = 1. 预测的 bboxes 坐标  2. bboxes 对应的置信度  3. 角点置信度  4.预测的类别
     detections, center = nnet.test([images], ae_threshold=ae_threshold, K=K, kernel=kernel)
     detections = detections.data.cpu().numpy()
     center = center.data.cpu().numpy()
+    # print(detections.size(),center.size())   # <class 'tuple'>: (2, 1000, 8)     <class 'tuple'>: (2, 70, 4)
     return detections, center
 
 def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
@@ -62,10 +90,11 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
         os.makedirs(debug_dir)
 
     if db.split != "trainval":
+        # debug 模式只检测 100 张
         db_inds = db.db_inds[:100] if debug else db.db_inds
     else:
         db_inds = db.db_inds[:100] if debug else db.db_inds[:5000]
-    num_images = db_inds.size
+    num_images = db_inds.size   # 测试集大小
 
     K             = db.configs["top_k"]
     ae_threshold  = db.configs["ae_threshold"]
@@ -84,7 +113,7 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
     }[db.configs["nms_algorithm"]]
 
     top_bboxes = {}
-    for ind in tqdm(range(0, num_images), ncols=80, desc="locating kps"):
+    for ind in tqdm(range(0, num_images), ncols=80, desc="locating kps"):   # 遍历测试集中每张图片
         db_ind = db_inds[ind]
 
         image_id   = db.image_ids(db_ind)
@@ -96,44 +125,56 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
         detections = []
         center_points = []
 
-        for scale in scales:
+        for scale in scales:  # 只有一个值为 1
             new_height = int(height * scale)
             new_width  = int(width * scale)
             new_center = np.array([new_height // 2, new_width // 2])
 
-            inp_height = new_height | 127
-            inp_width  = new_width  | 127
+            # 变大了，每张图不一样 最大不超过 [511 ，？]？
+            inp_height = new_height | 127   # python 位运算 ‘|’：只要一个为1，则为1，否则为0
+            inp_width  = new_width  | 127   # 生成一个二进制数？  127 二进制 1111111  511 111111111  767  1011111111
 
             images  = np.zeros((1, 3, inp_height, inp_width), dtype=np.float32)
             ratios  = np.zeros((1, 2), dtype=np.float32)
             borders = np.zeros((1, 4), dtype=np.float32)
             sizes   = np.zeros((1, 2), dtype=np.float32)
 
+            # 理论上 特征图大小
             out_height, out_width = (inp_height + 1) // 4, (inp_width + 1) // 4
+            # 特征图大小/输入图片大小
             height_ratio = out_height / inp_height
             width_ratio  = out_width  / inp_width
-
+            # 根据 scale 系数缩放真实的原图（现在为 1）
             resized_image = cv2.resize(image, (new_width, new_height))
+            # 把原图放在新图形的正中心，其余位置为 0 ，相当于对原图进行零填充  ，border有图像的像素的边界 ， offset 原图中心与新图中心的偏移
             resized_image, border, offset = crop_image(resized_image, new_center, [inp_height, inp_width])
 
             resized_image = resized_image / 255.
             normalize_(resized_image, db.mean, db.std)
 
-            images[0]  = resized_image.transpose((2, 0, 1))
+            images[0]  = resized_image.transpose((2, 0, 1))  #  [C , H ,W]
+            # 中心图上边界坐标
             borders[0] = border
+            # 缩放后原图大小存入 sizes[0]
             sizes[0]   = [int(height * scale), int(width * scale)]
-            ratios[0]  = [height_ratio, width_ratio]       
-
+            # 特征图大小 除以 二进制放大后原图大小
+            ratios[0]  = [height_ratio, width_ratio]
+            # 原图与水平翻转
             images = np.concatenate((images, images[:, :, :, ::-1]), axis=0)
+            # torch.Size([2, 3, H , W])
             images = torch.from_numpy(images)
             dets, center = decode_func(nnet, images, K, ae_threshold=ae_threshold, kernel=nms_kernel)
+            # center = # torch.Size([2,70, 4])        1. 预测的中点坐标值  2.预测的类别值  3， 预测的置信度
+            # detections = # torch.Size([2, 1000, 8]) 1. 预测的 bboxes 坐标 占 4  2. bboxes 对应的置信度  3. 角点置信度 占 2  4.预测的类别
             dets   = dets.reshape(2, -1, 8)
             center = center.reshape(2, -1, 4)
+            # 反转后图片 宽度 - 角点 x 坐标    -->  翻转前的坐标
             dets[1, :, [0, 2]] = out_width - dets[1, :, [2, 0]]
             center[1, :, [0]] = out_width - center[1, :, [0]]
-            dets   = dets.reshape(1, -1, 8)
-            center   = center.reshape(1, -1, 4)
-            
+            dets   = dets.reshape(1, -1, 8)  # <class 'tuple'>: (1, 2000, 8)
+            center   = center.reshape(1, -1, 4)  # <class 'tuple'>: (1, 140, 4)
+
+            # 转换特征图角点坐标 --> 二进制处理后角点坐标 --> 缩放后图像角点坐标 ，并将出界的框置为 -1
             _rescale_dets(dets, ratios, borders, sizes)
             center [...,[0]] /= ratios[:, 1][:, None, None]
             center [...,[1]] /= ratios[:, 0][:, None, None] 
@@ -141,6 +182,8 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
             center [...,[1]] -= borders[:, 0][:, None, None]
             np.clip(center [...,[0]], 0, sizes[:, 1][:, None, None], out=center [...,[0]])
             np.clip(center [...,[1]], 0, sizes[:, 0][:, None, None], out=center [...,[1]])
+
+            # 返回成缩放前的大小
             dets[:, :, 0:4] /= scale
             center[:, :, 0:2] /= scale
 
@@ -148,20 +191,24 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
               center_points.append(center)
             detections.append(dets)
 
-        detections = np.concatenate(detections, axis=1)
-        center_points = np.concatenate(center_points, axis=1)
+        detections = np.concatenate(detections, axis=1)     # <class 'tuple'>: (1, 2000, 8)
+        center_points = np.concatenate(center_points, axis=1)   # <class 'tuple'>: (1, 140, 4)
 
         classes    = detections[..., -1]
-        classes    = classes[0]
-        detections = detections[0]
-        center_points = center_points[0]
-        
+        classes    = classes[0]             # <class 'tuple'>: (2000,)
+        detections = detections[0]          # <class 'tuple'>: (2000, 8)
+        center_points = center_points[0]    # <class 'tuple'>: (140, 4)
+        # center = # torch.Size([2,70, 4])        1. 预测的中点坐标值  2.预测的类别值  3， 预测的置信度
+        # detections = # torch.Size([2, 1000, 8]) 1. 预测的 bboxes 坐标 占 4  2. bboxes 对应的置信度  3. 角点置信度 占 2  4.预测的类别
+
+        # 置信度 > -1 的框的索引
         valid_ind = detections[:,4]> -1
         valid_detections = detections[valid_ind]
         
         box_width = valid_detections[:,2] - valid_detections[:,0]
         box_height = valid_detections[:,3] - valid_detections[:,1]
-        
+
+        # 论文中根据 框大小算 n  以 150 分界
         s_ind = (box_width*box_height <= 22500)
         l_ind = (box_width*box_height > 22500)
         

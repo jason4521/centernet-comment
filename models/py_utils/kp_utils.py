@@ -38,7 +38,7 @@ def make_inter_layer(dim):
 def make_cnv_layer(inp_dim, out_dim):
     return convolution(3, inp_dim, out_dim)
 
-# # ct_regr = [batch_size , 16384 , 2] , ct_embed [batch_size , 128]
+# ct_regr = [batch_size , 16384 , 2] , ct_embed [batch_size , 128]
 def _gather_feat(feat, ind, mask=None):
     dim  = feat.size(2)
     # 1. ind 变成 [batch_size , 128 ，1 ]  在位置2 加一维度
@@ -54,12 +54,14 @@ def _gather_feat(feat, ind, mask=None):
         feat = feat.view(-1, dim)
     return feat
 
+# heat = torch.Size([2, 80, 128, 192])
+# 只保留 3*3 pooling 中最大值
 def _nms(heat, kernel=1):
-    pad = (kernel - 1) // 2
+    pad = (kernel - 1) // 2 # k = 3
 
-    hmax = nn.functional.max_pool2d(heat, (kernel, kernel), stride=1, padding=pad)
-    keep = (hmax == heat).float()
-    return heat * keep
+    hmax = nn.functional.max_pool2d(heat, (kernel, kernel), stride=1, padding=pad)   # torch.Size([2, 80, 128, 192])
+    keep = (hmax == heat).float()      # 相同位置值相同为1不同为0
+    return heat * keep  # 只保留 3*3 pooling 中最大值 --> 对应高斯分布？ 只保留最大值那个角点
 
 # ct_regr = _tranpose_and_gather_feat(ct_regr, ct_inds)   # torch.Size([1, 128, 2])
 # ct_regr = torch.Size([1,  2, 128, 128])   , ct_inds = # (batch_size, 128) 真实的 embed
@@ -69,17 +71,22 @@ def _tranpose_and_gather_feat(feat, ind):
     feat = feat.view(feat.size(0), -1, feat.size(3)) # ct_regr = [batch_size , 16384 , 2]
     feat = _gather_feat(feat, ind)
     return feat
-
+# scores = torch.Size([2, 80, 128, 192])   K:70
 def _topk(scores, K=20):
     batch, cat, height, width = scores.size()
 
+    # 有序排列所有 heatmap 中的值
+    # temp = scores.view(batch, -1)   # torch.Size([2, 1966080])
+    # topk_scores, topk_inds = [2,70]   进一步选出 heatmap 中前 70 大的值，及其索引
     topk_scores, topk_inds = torch.topk(scores.view(batch, -1), K)
-
+    # 具体是哪个类 0-80
     topk_clses = (topk_inds / (height * width)).int()
-
+    # 在该类特征图上的具体位置索引
     topk_inds = topk_inds % (height * width)
+    # 计算当前角点特征图上的角点坐标
     topk_ys   = (topk_inds / width).int().float()
     topk_xs   = (topk_inds % width).int().float()
+    # 1. 每张图前 70 个 角点置信度最高的值   2. 在一张一维特征图上的具体位置索引   3. 选出的 70 个值对应的类  4. 选出的值在特征图上的坐标
     return topk_scores, topk_inds, topk_clses, topk_ys, topk_xs
 
 def _decode(
@@ -88,20 +95,23 @@ def _decode(
 ):
     batch, cat, height, width = tl_heat.size()
 
-    tl_heat = torch.sigmoid(tl_heat)
+    tl_heat = torch.sigmoid(tl_heat)    # 例子： torch.Size([2, 80, 128, 192])
     br_heat = torch.sigmoid(br_heat)
     ct_heat = torch.sigmoid(ct_heat)
 
     # perform nms on heatmaps
+    # 只保留 [kernel,kernel](3*3) 区域内最大值那个角点，其余赋值 0
+    # 例子： torch.Size([2, 80, 128, 192])
     tl_heat = _nms(tl_heat, kernel=kernel)
     br_heat = _nms(br_heat, kernel=kernel)
     ct_heat = _nms(ct_heat, kernel=kernel)
 
+    # 提取 heatmap 中值高的前 70 个值 -->  1. 每张图前 70 个 角点置信度最高的值   2. 在一张一维特征图上的具体位置索引   3. 选出的 70 个值对应的类  4. 选出的值在特征图上的坐标
     tl_scores, tl_inds, tl_clses, tl_ys, tl_xs = _topk(tl_heat, K=K)
     br_scores, br_inds, br_clses, br_ys, br_xs = _topk(br_heat, K=K)
     ct_scores, ct_inds, ct_clses, ct_ys, ct_xs = _topk(ct_heat, K=K)
-
-    tl_ys = tl_ys.view(batch, K, 1).expand(batch, K, K)
+    # 同上 K = 70   70个左上角 70个右下角 共 4900 个框
+    tl_ys = tl_ys.view(batch, K, 1).expand(batch, K, K)     # torch.Size([2, 70, 70])
     tl_xs = tl_xs.view(batch, K, 1).expand(batch, K, K)
     br_ys = br_ys.view(batch, 1, K).expand(batch, K, K)
     br_xs = br_xs.view(batch, 1, K).expand(batch, K, K)
@@ -109,13 +119,16 @@ def _decode(
     ct_xs = ct_xs.view(batch, 1, K).expand(batch, K, K)
 
     if tl_regr is not None and br_regr is not None:
-        tl_regr = _tranpose_and_gather_feat(tl_regr, tl_inds)
-        tl_regr = tl_regr.view(batch, K, 1, 2)
+        # 计算 offset            tl_regr = torch.Size([2, 2, 128, 192])
+        tl_regr = _tranpose_and_gather_feat(tl_regr, tl_inds)   # torch.Size([2, 70, 2])
+        tl_regr = tl_regr.view(batch, K, 1, 2)      # torch.Size([2, 70, 1, 2])
         br_regr = _tranpose_and_gather_feat(br_regr, br_inds)
         br_regr = br_regr.view(batch, 1, K, 2)
         ct_regr = _tranpose_and_gather_feat(ct_regr, ct_inds)
         ct_regr = ct_regr.view(batch, 1, K, 2)
 
+        # temp = tl_regr[..., 0]  torch.Size([2, 70, 1])
+        # 特征图判断的坐标加 offset --> 特征图理论坐标
         tl_xs = tl_xs + tl_regr[..., 0]
         tl_ys = tl_ys + tl_regr[..., 1]
         br_xs = br_xs + br_regr[..., 0]
@@ -124,19 +137,23 @@ def _decode(
         ct_ys = ct_ys + ct_regr[..., 1]
 
     # all possible boxes based on top k corners (ignoring class)
+    # 不考虑 类别  每张图产生 4900 个框
     bboxes = torch.stack((tl_xs, tl_ys, br_xs, br_ys), dim=3)
 
+    # 计算 角点的 embed 距离 dist
     tl_tag = _tranpose_and_gather_feat(tl_tag, tl_inds)
     tl_tag = tl_tag.view(batch, K, 1)
     br_tag = _tranpose_and_gather_feat(br_tag, br_inds)
     br_tag = br_tag.view(batch, 1, K)
     dists  = torch.abs(tl_tag - br_tag)
 
+    # 角点的 置信度 均值
     tl_scores = tl_scores.view(batch, K, 1).expand(batch, K, K)
     br_scores = br_scores.view(batch, 1, K).expand(batch, K, K)
-    scores    = (tl_scores + br_scores) / 2
-
+    # 70 个框的置信度均值
+    scores    = (tl_scores + br_scores) / 2      #  torch.Size([2, 70, 70])
     # reject boxes based on classes
+    # 两个角点 不是相同类 的索引 cls_inds
     tl_clses = tl_clses.view(batch, K, 1).expand(batch, K, K)
     br_clses = br_clses.view(batch, 1, K).expand(batch, K, K)
     cls_inds = (tl_clses != br_clses)
@@ -145,27 +162,29 @@ def _decode(
     dist_inds = (dists > ae_threshold)
 
     # reject boxes based on widths and heights
+    # 反向框
     width_inds  = (br_xs < tl_xs)
     height_inds = (br_ys < tl_ys)
-
+    # 冗余的框置信度设置为 -1
     scores[cls_inds]    = -1
     scores[dist_inds]   = -1
     scores[width_inds]  = -1
     scores[height_inds] = -1
-
-    scores = scores.view(batch, -1)
-    scores, inds = torch.topk(scores, num_dets)
-    scores = scores.unsqueeze(2)
-
-    bboxes = bboxes.view(batch, -1, 4)
+    scores = scores.view(batch, -1)  # torch.Size([2, 4900])
+    # 选取置信度前 1000 的框
+    scores, inds = torch.topk(scores, num_dets)  # torch.Size([2, 1000])
+    scores = scores.unsqueeze(2)    # torch.Size([2, 1000, 1])
+    bboxes = bboxes.view(batch, -1, 4)  # torch.Size([2, 70, 70, 4]) --> torch.Size([2, 4900, 4])
+    # 根据置信度前 1000 框的索引提取该框的坐标 torch.Size([2, 1000, 4])
     bboxes = _gather_feat(bboxes, inds)
     
     #width = (bboxes[:,:,2] - bboxes[:,:,0]).unsqueeze(2)
     #height = (bboxes[:,:,2] - bboxes[:,:,0]).unsqueeze(2)
-    
+    # 根据置信度前 1000 框的索引提取该框的类别 torch.Size([2, 1000, 1])
     clses  = tl_clses.contiguous().view(batch, -1, 1)
     clses  = _gather_feat(clses, inds).float()
 
+    # 根据置信度前 1000 框的索引提取该角点的置信度 torch.Size([2, 1000, 1])
     tl_scores = tl_scores.contiguous().view(batch, -1, 1)
     tl_scores = _gather_feat(tl_scores, inds).float()
     br_scores = br_scores.contiguous().view(batch, -1, 1)
@@ -173,9 +192,11 @@ def _decode(
 
     ct_xs = ct_xs[:,0,:]
     ct_ys = ct_ys[:,0,:]
-    
-    center = torch.cat([ct_xs.unsqueeze(2), ct_ys.unsqueeze(2), ct_clses.float().unsqueeze(2), ct_scores.unsqueeze(2)], dim=2)
-    detections = torch.cat([bboxes, scores, tl_scores, br_scores, clses], dim=2)
+
+    # center = 1.预测的中点坐标值  2.预测的类别值  3， 预测的置信度
+    center = torch.cat([ct_xs.unsqueeze(2), ct_ys.unsqueeze(2), ct_clses.float().unsqueeze(2), ct_scores.unsqueeze(2)], dim=2)  # torch.Size([2,70, 4])
+    # detections = 1. 预测的 bboxes 坐标  2. bboxes 对应的置信度  3. 角点置信度  4.预测的类别
+    detections = torch.cat([bboxes, scores, tl_scores, br_scores, clses], dim=2)    # torch.Size([2, 1000, 8])  bboxes 占 4
     return detections, center
 
 def _neg_loss(preds, gt):

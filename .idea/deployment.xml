@@ -19,6 +19,7 @@
           </mappings>
           <excludedPaths>
             <excludedPath path="/CenterNet/data" />
+            <excludedPath path="/CenterNet/cache/nnet" />
           </excludedPaths>
         </serverdata>
       </paths>

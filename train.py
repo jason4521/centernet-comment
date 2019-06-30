@@ -28,7 +28,7 @@ def parse_args():
     parser.add_argument("--iter", dest="start_iter",
                         help="train at iteration i",
                         default=0, type=int)
-    parser.add_argument("--threads", dest="threads", default=3, type=int)
+    parser.add_argument("--threads", dest="threads", default=1, type=int)
 
     #args = parser.parse_args()
     args, unparsed = parser.parse_known_args()
@@ -173,7 +173,7 @@ def train(training_dbs, validation_db, start_iter=0):
         validation_task.terminate()
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"] = "3,2,1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
     args = parse_args()
 
     cfg_file = os.path.join(system_configs.config_dir, args.cfg_file + ".json")

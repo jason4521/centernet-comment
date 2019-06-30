@@ -267,7 +267,7 @@ class kp(nn.Module):
             tl_regr_,  br_regr_ = layer[10:12]
             ct_regr_         = layer[12]
 
-            kp  = kp_(inter)
+            kp  = kp_(inter)    # torch.Size([2, 256, 128, 192])
             cnv = cnv_(kp)
 
             if ind == self.nstack - 1:
