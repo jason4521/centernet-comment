@@ -15,6 +15,9 @@ from config import system_configs
 from utils import crop_image, normalize_
 from external.nms import soft_nms, soft_nms_merge
 
+from visdom import Visdom
+vis = Visdom(env='test_centernet',port = 8099)
+
 colours = np.random.rand(80,3)
 
 
@@ -86,6 +89,7 @@ def kp_decode(nnet, images, K, ae_threshold=0.5, kernel=3):
 
 def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
     debug_dir = os.path.join(result_dir, "debug")
+    visdom = True
     if not os.path.exists(debug_dir):
         os.makedirs(debug_dir)
 
@@ -148,7 +152,7 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
             resized_image = cv2.resize(image, (new_width, new_height))
             # 把原图放在新图形的正中心，其余位置为 0 ，相当于对原图进行零填充  ，border有图像的像素的边界 ， offset 原图中心与新图中心的偏移
             resized_image, border, offset = crop_image(resized_image, new_center, [inp_height, inp_width])
-
+            vis_draw_img = resized_image.copy()
             resized_image = resized_image / 255.
             normalize_(resized_image, db.mean, db.std)
 
@@ -203,40 +207,52 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
 
         # 置信度 > -1 的框的索引
         valid_ind = detections[:,4]> -1
+        # 有效的框的集合
         valid_detections = detections[valid_ind]
-        
         box_width = valid_detections[:,2] - valid_detections[:,0]
         box_height = valid_detections[:,3] - valid_detections[:,1]
 
         # 论文中根据 框大小算 n  以 150 分界
         s_ind = (box_width*box_height <= 22500)
         l_ind = (box_width*box_height > 22500)
-        
+        # 小框
         s_detections = valid_detections[s_ind]
+        # 大框
         l_detections = valid_detections[l_ind]
-        
+
+        # 计算中心区域坐标
         s_left_x = (2*s_detections[:,0] + s_detections[:,2])/3
         s_right_x = (s_detections[:,0] + 2*s_detections[:,2])/3
         s_top_y = (2*s_detections[:,1] + s_detections[:,3])/3
         s_bottom_y = (s_detections[:,1]+2*s_detections[:,3])/3
-        
+        # 暂存所有框的置信度
         s_temp_score = copy.copy(s_detections[:,4])
+        # 所有框的置信度设为 -1
         s_detections[:,4] = -1
-        
+        # 提取预测的中心点坐标
         center_x = center_points[:,0][:, np.newaxis]
         center_y = center_points[:,1][:, np.newaxis]
+        # 提取中心区域坐标
         s_left_x = s_left_x[np.newaxis, :]
         s_right_x = s_right_x[np.newaxis, :]
         s_top_y = s_top_y[np.newaxis, :]
         s_bottom_y = s_bottom_y[np.newaxis, :]
-        
+        # 在四个边界内的中心点的索引(每个中心点到每个边界!)
+        # center_x[140,1] - s_left_x[1,269] --> ind_lx [140,269]
         ind_lx = (center_x - s_left_x) > 0
         ind_rx = (center_x - s_right_x) < 0
         ind_ty = (center_y - s_top_y) > 0
         ind_by = (center_y - s_bottom_y) < 0
+        # 中心点的预测类别与框预测类别相同的索引
         ind_cls = (center_points[:,2][:, np.newaxis] - s_detections[:,-1][np.newaxis, :]) == 0
+        # 该框是否有同时符合上方5个条件的中心点 （0，1）-> (True,Flase) <class 'tuple'>: (269,)
+        #  1.  Bool + 0 = int   2. & 按位与运算符：参与运算的两个值,如果两个相应位都为1,则该位的结果为1,否则为0
         ind_s_new_score = np.max(((ind_lx+0) & (ind_rx+0) & (ind_ty+0) & (ind_by+0) & (ind_cls+0)), axis = 0) == 1
+        # temp_ = ((ind_lx+0) & (ind_rx+0) & (ind_ty+0) & (ind_by+0) & (ind_cls+0))  #该点是否满足该框的5个条件   <class 'tuple'>: (140, 269)
+        # temp  = ((ind_lx+0) & (ind_rx+0) & (ind_ty+0) & (ind_by+0) & (ind_cls+0))[:,ind_s_new_score]  #提取出有满足条件中心点的框    <class 'tuple'>: (140, 190)
+        # 每个框符合条件的中心点的索引   <class 'tuple'>: (190,)
         index_s_new_score = np.argmax(((ind_lx+0) & (ind_rx+0) & (ind_ty+0) & (ind_by+0) & (ind_cls+0))[:,ind_s_new_score], axis = 0)
+        # 框的置信度 = 三个点置信度的均值
         s_detections[:,4][ind_s_new_score] = (s_temp_score[ind_s_new_score]*2 + center_points[index_s_new_score,3])/3
        
         l_left_x = (3*l_detections[:,0] + 2*l_detections[:,2])/5
@@ -264,6 +280,7 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
         l_detections[:,4][ind_l_new_score] = (l_temp_score[ind_l_new_score]*2 + center_points[index_l_new_score,3])/3
         
         detections = np.concatenate([l_detections,s_detections],axis = 0)
+        # 根据置信度，由大到小，对框进行排序  <class 'tuple'>: (293, 8)
         detections = detections[np.argsort(-detections[:,4])] 
         classes   = detections[..., -1]
                 
@@ -298,30 +315,51 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
         #           break
         # reject detections with negative scores
         keep_inds  = (detections[:, 4] > -1)
+        # 保留包含中心点的框  <class 'tuple'>: (195, 8)
         detections = detections[keep_inds]
         classes    = classes[keep_inds]
 
         top_bboxes[image_id] = {}
         for j in range(categories):
-            keep_inds = (classes == j)
+            keep_inds = (classes == j)  # 当前类
             top_bboxes[image_id][j + 1] = detections[keep_inds][:, 0:7].astype(np.float32)
             if merge_bbox:
                 soft_nms_merge(top_bboxes[image_id][j + 1], Nt=nms_threshold, method=nms_algorithm, weight_exp=weight_exp)
             else:
                 soft_nms(top_bboxes[image_id][j + 1], Nt=nms_threshold, method=nms_algorithm)
-            top_bboxes[image_id][j + 1] = top_bboxes[image_id][j + 1][:, 0:5]
+            top_bboxes[image_id][j + 1] = top_bboxes[image_id][j + 1][:, 0:5]  # 角点坐标占4 加 框的置信度
 
         scores = np.hstack([
             top_bboxes[image_id][j][:, -1] 
             for j in range(1, categories + 1)
         ])
-        if len(scores) > max_per_image:
+        if len(scores) > max_per_image:  # 删除多余设置条件的框
             kth    = len(scores) - max_per_image
             thresh = np.partition(scores, kth)[kth]
             for j in range(1, categories + 1):
                 keep_inds = (top_bboxes[image_id][j][:, -1] >= thresh)
                 top_bboxes[image_id][j] = top_bboxes[image_id][j][keep_inds]
-
+        print(top_bboxes[image_id][1])
+        if visdom:
+            # 原图
+            img_raw = image.copy()
+            # 添加框
+            for detection in top_bboxes[image_id]:
+                category = detection
+                for itm in top_bboxes[image_id][detection]:
+                    img_raw = cv2.rectangle(img_raw, (int(itm[0]), int(itm[1])),
+                                            (int(itm[2]), int(itm[3])), colours[ind]*255, 3)
+                    # 添加类别
+                    img_raw = cv2.putText(img_raw, str(category), (int(itm[0]), int(itm[1] + 25)),
+                                          cv2.FONT_HERSHEY_COMPLEX, 1, colours[ind], 1)
+            # 显示原图
+            vis_img_raw = cv2.cvtColor(img_raw, cv2.COLOR_BGR2RGB)
+            vis_img = np.transpose(vis_img_raw, (2, 0, 1))  # [H , W , C ]  -->  [C , H , W]
+            vis.image(vis_img, win='raw_test_img', opts=dict(title='raw_test_img'))
+            # 显示处理后的输入图（归一化前）  vis_draw_img
+            vis_draw_img = cv2.cvtColor(vis_draw_img, cv2.COLOR_BGR2RGB)
+            vis_draw_img = np.transpose(vis_draw_img, (2, 0, 1))  # [H , W , C ]  -->  [C , H , W]
+            vis.image(vis_draw_img, win='test_img', opts=dict(title='test_img'))
         if debug:
             image_file = db.image_file(db_ind)
             image      = cv2.imread(image_file)
