@@ -1,6 +1,6 @@
 # 简单说明  
-本文是 `Kaiwen Duan` 开源的 `Centernet`代码额简单注释,理解错误之处请指教
-[源码地址]：](https://github.com/Duankaiwen/CenterNet)   
+本文是 `Kaiwen Duan` 开源的 `Centernet`代码额简单注释,理解错误之处请指教  
+[源码地址：](https://github.com/Duankaiwen/CenterNet)   
 [论文: ](https://arxiv.org/abs/1904.08189)  
 
 # Architecture
