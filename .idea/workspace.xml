@@ -6,6 +6,7 @@
   <component name="ChangeListManager">
     <list default="true" id="ed2692a9-7ac9-43b6-b251-f1748cc25b6c" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sample/coco.py" beforeDir="false" afterPath="$PROJECT_DIR$/sample/coco.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -21,35 +22,11 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/test/coco.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="286">
-              <caret line="83" column="43" selection-start-line="83" selection-start-column="25" selection-end-line="83" selection-end-column="43" />
-              <folding>
-                <element signature="e#0#9#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="false">
+      <file pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/models/py_utils/kp.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="286">
-              <caret line="93" column="36" lean-forward="true" selection-start-line="93" selection-start-column="34" selection-end-line="93" selection-end-column="41" />
-              <folding>
-                <element signature="e#0#10#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/models/py_utils/kp_utils.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="340">
-              <caret line="126" column="60" selection-start-line="126" selection-start-column="53" selection-end-line="126" selection-end-column="60" />
+            <state relative-caret-position="-1233">
+              <caret line="296" column="24" lean-forward="true" selection-start-line="296" selection-end-line="296" selection-end-column="24" />
               <folding>
                 <element signature="e#0#10#0" expanded="true" />
               </folding>
@@ -98,7 +75,6 @@
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/train.py" />
-        <option value="$PROJECT_DIR$/sample/coco.py" />
         <option value="$PROJECT_DIR$/test.py" />
         <option value="$PROJECT_DIR$/models/py_utils/kp.py" />
         <option value="$PROJECT_DIR$/utils/image.py" />
@@ -106,6 +82,7 @@
         <option value="$PROJECT_DIR$/tesssst.py" />
         <option value="$PROJECT_DIR$/config/CenterNet-104.json" />
         <option value="$PROJECT_DIR$/test/coco.py" />
+        <option value="$PROJECT_DIR$/sample/coco.py" />
       </list>
     </option>
   </component>
@@ -312,15 +289,15 @@
       <workItem from="1561897273060" duration="19000" />
       <workItem from="1561945923085" duration="14676000" />
       <workItem from="1562047656534" duration="3276000" />
-      <workItem from="1562052186975" duration="3385000" />
+      <workItem from="1562052186975" duration="5256000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="57850000" />
+    <option name="totallyTimeSpent" value="59721000" />
   </component>
   <component name="ToolWindowManager">
-    <frame x="953" y="0" width="974" height="1047" extended-state="0" />
+    <frame x="953" y="0" width="974" height="1047" extended-state="1" />
     <editor active="true" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" weight="0.3884026" />
@@ -446,16 +423,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/train.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3159">
-          <caret line="135" selection-start-line="135" selection-end-line="135" />
-          <folding>
-            <element signature="e#22#31#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/test.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="1674">
@@ -467,16 +434,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="486">
           <caret line="22" column="13" selection-start-line="22" selection-start-column="13" selection-end-line="22" selection-end-column="13" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/sample/coco.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="2943">
-          <caret line="120" column="81" selection-start-line="107" selection-start-column="8" selection-end-line="120" selection-end-column="81" />
-          <folding>
-            <element signature="e#0#10#0" expanded="true" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -524,20 +481,40 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/models/py_utils/kp.py">
+    <entry file="file://$PROJECT_DIR$/models/py_utils/kp_utils.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="286">
-          <caret line="93" column="36" lean-forward="true" selection-start-line="93" selection-start-column="34" selection-end-line="93" selection-end-column="41" />
+        <state relative-caret-position="-1361">
+          <caret line="126" column="60" selection-start-line="126" selection-start-column="53" selection-end-line="126" selection-end-column="60" />
           <folding>
             <element signature="e#0#10#0" expanded="true" />
           </folding>
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/models/py_utils/kp_utils.py">
+    <entry file="file://$PROJECT_DIR$/sample/coco.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="340">
-          <caret line="126" column="60" selection-start-line="126" selection-start-column="53" selection-end-line="126" selection-end-column="60" />
+        <state relative-caret-position="-72">
+          <caret line="223" column="17" selection-start-line="223" selection-start-column="8" selection-end-line="223" selection-end-column="17" />
+          <folding>
+            <element signature="e#0#10#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/train.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="101">
+          <caret line="135" column="100" selection-start-line="135" selection-start-column="8" selection-end-line="135" selection-end-column="100" />
+          <folding>
+            <element signature="e#22#31#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/models/py_utils/kp.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-1233">
+          <caret line="296" column="24" lean-forward="true" selection-start-line="296" selection-end-line="296" selection-end-column="24" />
           <folding>
             <element signature="e#0#10#0" expanded="true" />
           </folding>
