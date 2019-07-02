@@ -8,7 +8,7 @@
 
 ![Network_Structure](https://github.com/Dawning23/centernet-comment/blob/master/image/Network_Structure.jpg)  
 
-# 注释中的 `crop_image()` 函数的作用   
+# `/utils/image.py 中 crop_image()` 函数的作用   
 将原图放置在 `inp_height = new_height | 127` 代码生成的新图的正中心，周围用 0 填充，如下图  
 
 原图：  

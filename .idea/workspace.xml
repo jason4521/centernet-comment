@@ -4,10 +4,7 @@
     <bookmark url="file://$PROJECT_DIR$/test/coco.py" line="44" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="ed2692a9-7ac9-43b6-b251-f1748cc25b6c" name="Default Changelist" comment="">
-      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/sample/coco.py" beforeDir="false" afterPath="$PROJECT_DIR$/sample/coco.py" afterDir="false" />
-    </list>
+    <list default="true" id="ed2692a9-7ac9-43b6-b251-f1748cc25b6c" name="Default Changelist" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -26,7 +23,7 @@
         <entry file="file://$PROJECT_DIR$/models/py_utils/kp.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="-1233">
-              <caret line="296" column="24" lean-forward="true" selection-start-line="296" selection-end-line="296" selection-end-column="24" />
+              <caret line="296" column="24" selection-start-line="296" selection-end-line="296" selection-end-column="24" />
               <folding>
                 <element signature="e#0#10#0" expanded="true" />
               </folding>
@@ -86,7 +83,7 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="1">
+  <component name="ProjectFrameBounds">
     <option name="x" value="953" />
     <option name="width" value="974" />
     <option name="height" value="1047" />
@@ -289,16 +286,15 @@
       <workItem from="1561897273060" duration="19000" />
       <workItem from="1561945923085" duration="14676000" />
       <workItem from="1562047656534" duration="3276000" />
-      <workItem from="1562052186975" duration="5256000" />
+      <workItem from="1562052186975" duration="5607000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="59721000" />
+    <option name="totallyTimeSpent" value="60072000" />
   </component>
   <component name="ToolWindowManager">
-    <frame x="953" y="0" width="974" height="1047" extended-state="1" />
-    <editor active="true" />
+    <frame x="953" y="0" width="974" height="1047" extended-state="0" />
     <layout>
       <window_info content_ui="combo" id="Project" order="0" weight="0.3884026" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
@@ -514,7 +510,7 @@
     <entry file="file://$PROJECT_DIR$/models/py_utils/kp.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="-1233">
-          <caret line="296" column="24" lean-forward="true" selection-start-line="296" selection-end-line="296" selection-end-column="24" />
+          <caret line="296" column="24" selection-start-line="296" selection-end-line="296" selection-end-column="24" />
           <folding>
             <element signature="e#0#10#0" expanded="true" />
           </folding>
