@@ -20,7 +20,9 @@
 ![img_padding](https://github.com/Dawning23/centernet-comment/blob/master/img_padding.jpg)
 
 # Centenet 测试流程  
+
 1. 运行 `test.py` 函数最开始设置最基本的参数，`testing(db, nnet, result_dir, debug=debug)` 进入 `/test/coco.py` 文件的 `kp_detection()` 函数  
+
 
 2. `kp_detection()` 函数流程：      
 
@@ -39,22 +41,23 @@
     ⑨ nms处理冗余的框，根据每张图 `max_per_image` 参数值删除置信度小的框  
     ⑩ 保存生成的数据  
 
+
 3. `decode_func()`函数流程    
 
     该函数实际运行 `/models\py_utils\kp.py 文件 class kp(nn.Module): 的 _test(self, *xs, **kwargs) 部分`   
 
     1. 使用训练的网络提取特征，产生 8 个特征图：  
 
-      ```   
-      tl_heat
-      br_heat
-      ct_heat     # torch.Size([1, 80, 128, 128])
-      tl_tag      # torch.Size([1, 128, 1])
-      br_tag      # embed
-      tl_regr     # offset
-      br_regr     # torch.Size([1, 128, 2])
-      ct_regr     # torch.Size([1, 128, 2])
-      ```   
+        ```   
+        tl_heat
+        br_heat
+        ct_heat     # torch.Size([1, 80, 128, 128])
+        tl_tag      # torch.Size([1, 128, 1])
+        br_tag      # embed
+        tl_regr     # offset
+        br_regr     # torch.Size([1, 128, 2])
+        ct_regr     # torch.Size([1, 128, 2])
+        ```   
 
     2. 使用 `_decode()` 函数，流程如下：    
 
@@ -64,7 +67,7 @@
         ④ 70个角点，产生 4900 个框的可能性，将其中[角点的 embed 距离 大于 dist，两个角点 不是相同类，反向框]的置信度设置为 -1    
         ⑤ 根据置信度排名，每张图选取前 1000 个框   
         ⑥ 返回
-           
+
           ```  
           # center = # torch.Size([2,70, 4])        1. 预测的中点坐标值  2.预测的类别值  3， 预测的置信度
           # detections = # torch.Size([2, 1000, 8]) 1. 预测的 bboxes 坐标 占 4  2. bboxes 对应的置信度  3. 角点置信度 占 2  4.预测的类别
