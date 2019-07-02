@@ -46,7 +46,7 @@ def _rescale_dets(detections, ratios, borders, sizes):
     xs    -= borders[:, 2][:, None, None]   # borders[:, 2] 中心图左边界坐标
     ys    -= borders[:, 0][:, None, None]   # borders[:, 2] 中心图上边界坐标
 
-    # 出界的点的索引
+    # 出界的点的索引 (原图padding产生的？)
     tx_inds = xs[:,:,0] <= -5
     bx_inds = xs[:,:,1] >= sizes[0,1]+5
     ty_inds = ys[:,:,0] <= -5
@@ -346,12 +346,12 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
             # 添加框
             for detection in top_bboxes[image_id]:
                 category = detection
-                for itm in top_bboxes[image_id][detection]:
+                for idx,itm in enumerate(top_bboxes[image_id][detection]):
                     img_raw = cv2.rectangle(img_raw, (int(itm[0]), int(itm[1])),
-                                            (int(itm[2]), int(itm[3])), colours[ind]*255, 3)
+                                            (int(itm[2]), int(itm[3])), colours[category-1]*255, 1)
                     # 添加类别
-                    img_raw = cv2.putText(img_raw, str(category), (int(itm[0]), int(itm[1] + 25)),
-                                          cv2.FONT_HERSHEY_COMPLEX, 1, colours[ind], 1)
+                    img_raw = cv2.putText(img_raw, str(category), (int(itm[0]), int(itm[1] + 2)),
+                                          cv2.FONT_HERSHEY_SCRIPT_COMPLEX, 0.5, colours[category-1]*255, 0)
             # 显示原图
             vis_img_raw = cv2.cvtColor(img_raw, cv2.COLOR_BGR2RGB)
             vis_img = np.transpose(vis_img_raw, (2, 0, 1))  # [H , W , C ]  -->  [C , H , W]
