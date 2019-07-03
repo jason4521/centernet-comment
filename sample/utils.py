@@ -10,7 +10,7 @@ def gaussian2D(shape, sigma=1):
     return h
 
 def draw_gaussian(heatmap, center, radius, k=1, delte=6):
-    diameter = 2 * radius + 1  #21
+    diameter = 2 * radius + 1
     gaussian = gaussian2D((diameter, diameter), sigma=diameter / delte)
 
     x, y = center

@@ -220,7 +220,7 @@ def kp_detection(db, k_ind, data_aug, debug):
     for b_ind in range(batch_size):
         # 表明 该 batch 内每张照片有几个框
         tag_len = tag_lens[b_ind]
-        # onehot？     shape(batch_size, 128)
+        # onehot？  有几个框前边就是几个 1   shape(batch_size, 128)
         tag_masks[b_ind, :tag_len] = 1
 
     images      = torch.from_numpy(images)

@@ -109,7 +109,8 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
     merge_bbox    = db.configs["merge_bbox"]
     categories    = db.configs["categories"]
     nms_threshold = db.configs["nms_threshold"]
-    max_per_image = db.configs["max_per_image"]
+    # max_per_image = db.configs["max_per_image"]
+    max_per_image = 30
     nms_algorithm = {
         "nms": 0,
         "linear_soft_nms": 1, 
@@ -323,9 +324,10 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
         for j in range(categories):
             keep_inds = (classes == j)  # 当前类
             top_bboxes[image_id][j + 1] = detections[keep_inds][:, 0:7].astype(np.float32)
-            if merge_bbox:
+            if merge_bbox: # false
                 soft_nms_merge(top_bboxes[image_id][j + 1], Nt=nms_threshold, method=nms_algorithm, weight_exp=weight_exp)
             else:
+                # 将置信度低的框放在后边，没有删除多余的框？？？
                 soft_nms(top_bboxes[image_id][j + 1], Nt=nms_threshold, method=nms_algorithm)
             top_bboxes[image_id][j + 1] = top_bboxes[image_id][j + 1][:, 0:5]  # 角点坐标占4 加 框的置信度
 
@@ -335,11 +337,13 @@ def kp_detection(db, nnet, result_dir, debug=False, decode_func=kp_decode):
         ])
         if len(scores) > max_per_image:  # 删除多余设置条件的框
             kth    = len(scores) - max_per_image
+            # 原理就是这个函数不用对数组进行重新排序，只需要把k-th大小的元素放在同样的位置，然后两边的元素都不会进行重新排序
+            # 比如查找第三大元素，这个函数就会把第三大元素放在倒数第三的位置，然后小于的数字放在左边，大于的放在右边
             thresh = np.partition(scores, kth)[kth]
             for j in range(1, categories + 1):
                 keep_inds = (top_bboxes[image_id][j][:, -1] >= thresh)
                 top_bboxes[image_id][j] = top_bboxes[image_id][j][keep_inds]
-        print(top_bboxes[image_id][1])
+        # print(top_bboxes[image_id][1])
         if visdom:
             # 原图
             img_raw = image.copy()
